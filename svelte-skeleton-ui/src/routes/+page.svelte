@@ -3,7 +3,7 @@
 	Todo:
 
 		Change header/nav colour based on mode - https://www.skeleton.dev/docs/themes
-		Make WS client a singleton or globally available?
+		Make WS client a singleton or globally available? (WIP)
 		Disable UI on WS disconnect (see static pages)
 		Implement Event Table actions (Edit, Delete, Add Event & Update)
 		Retreive current mode from State (table) and update Mode Selection
@@ -11,11 +11,11 @@
 
  -->
 <script lang="ts">
-	import { RangeSlider, tableSourceValues } from '@skeletonlabs/skeleton';
+	import { RangeSlider } from '@skeletonlabs/skeleton';
 	import { ListBoxItem, ListBox } from '@skeletonlabs/skeleton';
-	import { ProgressRadial, tableMapperValues } from '@skeletonlabs/skeleton';
+	import { tableMapperValues } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
-	import { readable, writable } from 'svelte/store';
+	import { writable } from 'svelte/store';
 
 	interface RangeSliderProps {
 		value: number;
@@ -55,8 +55,18 @@
 	let amps_value = 16; // hardware max
 	let soc_range_value = 90; // default
 	let value = '';
+	let wsInterval = 0;
 	let eventData = writable<EventData[]>([]);
 	let realTimeData = writable<RealTimeData[]>([]);
+	let sourceData = [
+		{ time: '00:01:59', action: 'Idle' },
+		{ time: '00:01:59', action: 'Idle' }
+	]; // Placeholder data whilst testing
+	const tableSimple = {
+		head: ['Time', 'Action'],
+		body: tableMapperValues(sourceData, ['time', 'action']),
+		meta: tableMapperValues(sourceData, ['name', 'action'])
+	};
 
 	function submitCustomCharge(event: Event) {
 		event.preventDefault();
@@ -88,21 +98,26 @@
 	}
 
 	function radioModeChange(event: Event) {
-		const mode = value;
-		const chargePayload = {
-			cmd: {
-				SetMode: mode
-			}
-		};
+		let mode = value; // global fudge
+		let chargePayload = null;
+		if (mode === 'Discharge') {
+			const discharge_params: ChargeOptions = { soc_limit: soc_range_value, amps: amps_value };
+			chargePayload = { cmd: { SetMode: { Discharge: discharge_params } } };
+		} else {
+			chargePayload = {
+				cmd: {
+					SetMode: mode
+				}
+			};
+		}
 		console.log(JSON.stringify(event));
 		console.log('Testing mode payload' + JSON.stringify(chargePayload));
 		// Send the payload as a JSON string
 		// {"cmd": {"SetMode": "V2h"}}
 		// {"cmd": {"SetMode": "Idle"}}
-		// {"cmd": {"SetMode": "Discharge"}}
+		// {"cmd": {"SetMode": {"Discharge" : {amps: 10, soc_limit: 30, eco: null}}
 		socket.send(JSON.stringify(chargePayload));
 	}
-
 	if (typeof WebSocket !== 'undefined') {
 		// Make this a singleton?
 		socket = new WebSocket('ws://10.0.1.177:5555');
@@ -135,6 +150,7 @@
 			}
 		});
 	}
+
 	onMount(() => {
 		console.log('on mount');
 		if (socket) {
@@ -163,17 +179,6 @@
 			};
 		}
 	});
-
-	let sourceData = [
-		{ time: '00:01:59', action: 'Idle' },
-		{ time: '00:01:59', action: 'Idle' }
-	]; // Placeholder data whilst testing
-
-	const tableSimple = {
-		head: ['Time', 'Action'],
-		body: tableMapperValues(sourceData, ['time', 'action']),
-		meta: tableMapperValues(sourceData, ['name', 'action'])
-	};
 </script>
 
 <br />
@@ -200,9 +205,9 @@
 						name="soc"
 						id="range-slider-soc"
 						bind:value={soc_range_value}
-						min={30}
+						min={10}
 						max={100}
-						step={1}
+						step={5}
 						ticked
 					>
 						<div class="flex justify-between items-center">
@@ -267,6 +272,7 @@
 	</div>
 
 	<div class="flex-auto card p-10 max-h-[60vh] overflow-y-auto space-y-4">
+		<h2>Log</h2>
 		<div class="table table-hover">
 			<table id="dataTable" class="table-container">
 				<thead>

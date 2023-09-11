@@ -1,7 +1,8 @@
-<script>
+<script lang="ts">
 	import '../app.postcss';
 	import { AppShell, AppBar, LightSwitch } from '@skeletonlabs/skeleton';
-
+	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/stores';
 	// Highlight JS
 	import hljs from 'highlight.js';
 	import 'highlight.js/styles/github-dark.css';
@@ -24,14 +25,12 @@
 				<strong class="text-xl uppercase">CHAdeMO V2h</strong>
 			</svelte:fragment>
 			<svelte:fragment slot="trail">
-				<!-- <a
-					class="btn btn-sm variant-ghost-surface"
-					href="https://github.com/skeletonlabs/skeleton"
-					target="_blank"
-					rel="noreferrer"
-				>
-					GitHub
-				</a> -->
+				{#if $page.url.pathname === '/'}
+					<a class="btn btn-sm variant-ghost-surface" href="./debug" rel="noreferrer"> Debug </a>
+				{/if}
+				{#if $page.url.pathname === '/debug'}
+					<a class="btn btn-sm variant-ghost-surface" href="./" rel="noreferrer"> Home </a>
+				{/if}
 				<LightSwitch />
 			</svelte:fragment>
 		</AppBar>
